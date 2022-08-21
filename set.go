@@ -12,7 +12,7 @@ var member void
 
 type Set[T comparable] struct {
 	elements map[T]void
-	mutex    *sync.RWMutex
+	mutex    *sync.RWMutex // if nil, don't use mutex
 }
 
 // NewConcurrent returns a set that is concurrent safe.
@@ -25,6 +25,7 @@ func New[T comparable]() Set[T] {
 	return Set[T]{elements: make(map[T]void)}
 }
 
+// Add element.
 func (s Set[T]) Add(e T) bool {
 	if s.mutex != nil {
 		s.mutex.Lock()
@@ -38,6 +39,7 @@ func (s Set[T]) Add(e T) bool {
 	return true
 }
 
+// Remove element.
 func (s Set[T]) Remove(e T) bool {
 	if s.mutex != nil {
 		s.mutex.RLock()
@@ -51,6 +53,7 @@ func (s Set[T]) Remove(e T) bool {
 	return false
 }
 
+// Contains returns true if this contains e, else false.
 func (s Set[T]) Contains(e T) bool {
 	if s.mutex != nil {
 		s.mutex.Lock()
@@ -63,6 +66,7 @@ func (s Set[T]) Contains(e T) bool {
 	return false
 }
 
+// Intersects retuns the set intersection of this and rhs.
 func (s Set[T]) Intersect(rhs Set[T]) Set[T] {
 	if s.mutex != nil {
 		s.mutex.RLock()
@@ -85,6 +89,7 @@ func (s Set[T]) Intersect(rhs Set[T]) Set[T] {
 	return newSet
 }
 
+// Union returns the set union of this and rhs.
 func (s Set[T]) Union(rhs Set[T]) Set[T] {
 	if s.mutex != nil {
 		s.mutex.RLock()
@@ -109,6 +114,7 @@ func (s Set[T]) Union(rhs Set[T]) Set[T] {
 	return newSet
 }
 
+// Size retuns the number of elements in this.
 func (s Set[T]) Size() int {
 	return len(s.elements)
 }
