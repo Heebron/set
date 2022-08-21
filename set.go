@@ -1,37 +1,62 @@
-// set provides set operations over comparable types. These operations are not thread safe.
+// set provides set operations over comparable types.
 
 package set
+
+import (
+	"sync"
+)
 
 type void struct{}
 
 var member void
 
-type Set[T comparable] map[T]void
+type Set[T comparable] struct {
+	elements map[T]void
+	mutex    *sync.RWMutex
+}
 
+// NewConcurrent returns a set that is concurrent safe.
+func NewConcurrent[T comparable]() Set[T] {
+	return Set[T]{elements: make(map[T]void), mutex: new(sync.RWMutex)}
+}
+
+// New returns a set that is not concurrent safe.
 func New[T comparable]() Set[T] {
-	return Set[T]{}
+	return Set[T]{elements: make(map[T]void)}
 }
 
 func (s Set[T]) Add(e T) bool {
-	_, exists := s[e]
+	if s.mutex != nil {
+		s.mutex.Lock()
+		defer s.mutex.Unlock()
+	}
+	_, exists := s.elements[e]
 	if exists {
 		return false
 	}
-	s[e] = member
+	s.elements[e] = member
 	return true
 }
 
 func (s Set[T]) Remove(e T) bool {
-	_, exists := s[e]
+	if s.mutex != nil {
+		s.mutex.RLock()
+		defer s.mutex.RUnlock()
+	}
+	_, exists := s.elements[e]
 	if exists {
-		delete(s, e)
+		delete(s.elements, e)
 		return true
 	}
 	return false
 }
 
 func (s Set[T]) Contains(e T) bool {
-	_, exists := s[e]
+	if s.mutex != nil {
+		s.mutex.Lock()
+		defer s.mutex.Unlock()
+	}
+	_, exists := s.elements[e]
 	if exists {
 		return true
 	}
@@ -39,32 +64,51 @@ func (s Set[T]) Contains(e T) bool {
 }
 
 func (s Set[T]) Intersect(rhs Set[T]) Set[T] {
-	newSet := New[T]()
+	if s.mutex != nil {
+		s.mutex.RLock()
+		defer s.mutex.RUnlock()
+	}
 
-	for k, _ := range rhs {
-		if s.Contains(k) {
-			newSet.Add(k)
+	var newSet Set[T]
+	if s.mutex != nil {
+		newSet = NewConcurrent[T]()
+	} else {
+		newSet = New[T]()
+	}
+
+	for k := range rhs.elements {
+		_, exists := s.elements[k]
+		if exists {
+			newSet.elements[k] = member
 		}
 	}
 	return newSet
 }
 
 func (s Set[T]) Union(rhs Set[T]) Set[T] {
-	newSet := New[T]()
-
-	for k, _ := range s {
-		newSet.Add(k)
+	if s.mutex != nil {
+		s.mutex.RLock()
+		defer s.mutex.RUnlock()
 	}
 
-	for k, _ := range rhs {
-		if !newSet.Contains(k) {
-			newSet.Add(k)
-		}
+	var newSet Set[T]
+	if s.mutex != nil {
+		newSet = NewConcurrent[T]()
+	} else {
+		newSet = New[T]()
+	}
+
+	for k := range s.elements {
+		newSet.elements[k] = member
+	}
+
+	for k := range rhs.elements {
+		newSet.elements[k] = member
 	}
 
 	return newSet
 }
 
 func (s Set[T]) Size() int {
-	return len(s)
+	return len(s.elements)
 }
