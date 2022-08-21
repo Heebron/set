@@ -66,7 +66,7 @@ func (s Set[T]) Contains(e T) bool {
 	return false
 }
 
-// Intersects retuns the set intersection of this and rhs.
+// Intersect returns the set intersection of this and rhs.
 func (s Set[T]) Intersect(rhs Set[T]) Set[T] {
 	if s.mutex != nil {
 		s.mutex.RLock()
@@ -114,7 +114,7 @@ func (s Set[T]) Union(rhs Set[T]) Set[T] {
 	return newSet
 }
 
-// Size retuns the number of elements in this.
+// Size returns the number of elements in this.
 func (s Set[T]) Size() int {
 	return len(s.elements)
 }
