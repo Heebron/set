@@ -15,12 +15,12 @@ type Set[T comparable] struct {
 	mutex    *sync.RWMutex // if nil, don't use mutex
 }
 
-// NewConcurrent returns a set that is concurrent safe.
+// NewConcurrent returns a set that is thread safe.
 func NewConcurrent[T comparable]() Set[T] {
 	return Set[T]{elements: make(map[T]void), mutex: new(sync.RWMutex)}
 }
 
-// New returns a set that is not concurrent safe.
+// New returns a set that is not thread safe.
 func New[T comparable]() Set[T] {
 	return Set[T]{elements: make(map[T]void)}
 }
