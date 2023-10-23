@@ -137,8 +137,8 @@ func (s Set[T]) Size() int {
 	return len(s.members)
 }
 
-// GetMembers returns a slice containing all the members of the set. This is a shallow copy.
-func (s Set[T]) GetMembers() []T {
+// Members returns a slice containing all the members of the set. This is a shallow copy.
+func (s Set[T]) Members() []T {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
