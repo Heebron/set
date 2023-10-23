@@ -11,43 +11,61 @@ type void struct{}
 var member void
 
 type Set[T comparable] struct {
-	elements map[T]void
-	mutex    *sync.RWMutex // if nil, don't use mutex
+	members map[T]void
+	mutex   *sync.RWMutex // if nil, don't use mutex
 }
 
 // NewConcurrent returns a set that is thread safe.
 func NewConcurrent[T comparable]() Set[T] {
-	return Set[T]{elements: make(map[T]void), mutex: new(sync.RWMutex)}
+	return Set[T]{members: make(map[T]void), mutex: new(sync.RWMutex)}
+}
+
+// NewConcurrentWithInitializer returns a set that is thread safe and contains the provided initial set of members.
+func NewConcurrentWithInitializer[T comparable](members ...T) Set[T] {
+	s := Set[T]{members: make(map[T]void), mutex: new(sync.RWMutex)}
+	for _, v := range members {
+		s.members[v] = member
+	}
+	return s
 }
 
 // New returns a set that is not thread safe.
 func New[T comparable]() Set[T] {
-	return Set[T]{elements: make(map[T]void)}
+	return Set[T]{members: make(map[T]void)}
 }
 
-// Add element.
+// NewWithInitializer returns a set that is not thread safe and contains the provided initial set of members.
+func NewWithInitializer[T comparable](members ...T) Set[T] {
+	s := Set[T]{members: make(map[T]void)}
+	for _, v := range members {
+		s.members[v] = member
+	}
+	return s
+}
+
+// Add member.
 func (s Set[T]) Add(e T) bool {
 	if s.mutex != nil {
 		s.mutex.Lock()
 		defer s.mutex.Unlock()
 	}
-	_, exists := s.elements[e]
+	_, exists := s.members[e]
 	if exists {
 		return false
 	}
-	s.elements[e] = member
+	s.members[e] = member
 	return true
 }
 
-// Remove element.
+// Remove member.
 func (s Set[T]) Remove(e T) bool {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
 	}
-	_, exists := s.elements[e]
+	_, exists := s.members[e]
 	if exists {
-		delete(s.elements, e)
+		delete(s.members, e)
 		return true
 	}
 	return false
@@ -59,7 +77,7 @@ func (s Set[T]) Contains(e T) bool {
 		s.mutex.Lock()
 		defer s.mutex.Unlock()
 	}
-	_, exists := s.elements[e]
+	_, exists := s.members[e]
 	if exists {
 		return true
 	}
@@ -80,10 +98,10 @@ func (s Set[T]) Intersect(rhs Set[T]) Set[T] {
 		newSet = New[T]()
 	}
 
-	for k := range rhs.elements {
-		_, exists := s.elements[k]
+	for k := range rhs.members {
+		_, exists := s.members[k]
 		if exists {
-			newSet.elements[k] = member
+			newSet.members[k] = member
 		}
 	}
 	return newSet
@@ -103,18 +121,33 @@ func (s Set[T]) Union(rhs Set[T]) Set[T] {
 		newSet = New[T]()
 	}
 
-	for k := range s.elements {
-		newSet.elements[k] = member
+	for k := range s.members {
+		newSet.members[k] = member
 	}
 
-	for k := range rhs.elements {
-		newSet.elements[k] = member
+	for k := range rhs.members {
+		newSet.members[k] = member
 	}
 
 	return newSet
 }
 
-// Size returns the number of elements in this.
+// Size returns the number of members in this.
 func (s Set[T]) Size() int {
-	return len(s.elements)
+	return len(s.members)
+}
+
+// GetMembers returns a slice containing all the members of the set. This is a shallow copy.
+func (s Set[T]) GetMembers() []T {
+	if s.mutex != nil {
+		s.mutex.RLock()
+		defer s.mutex.RUnlock()
+	}
+
+	result := make([]T, 0, len(s.members))
+
+	for k := range s.members {
+		result = append(result, k)
+	}
+	return result
 }

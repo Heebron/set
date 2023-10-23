@@ -105,3 +105,19 @@ func TestSet_Union(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestMembers(t *testing.T) {
+	set := NewWithInitializer("Fred", "Wilma", "Barney")
+	m := set.GetMembers()
+	if len(m) != set.Size() {
+		t.Fail()
+	}
+	set.Remove("Barney")
+	set.Remove("Fred")
+
+	m = set.GetMembers()
+
+	if len(m) != 1 || m[0] != "Wilma" {
+		t.Fail()
+	}
+}
