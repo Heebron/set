@@ -78,10 +78,7 @@ func (s Set[T]) Contains(e T) bool {
 		defer s.mutex.Unlock()
 	}
 	_, exists := s.members[e]
-	if exists {
-		return true
-	}
-	return false
+	return exists
 }
 
 // Intersect returns the set intersection of this and rhs.
