@@ -1,7 +1,9 @@
 package set
 
 import (
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestSet_String(t *testing.T) {
@@ -118,6 +120,79 @@ func TestMembers(t *testing.T) {
 	m = set.Members()
 
 	if len(m) != 1 || m[0] != "Wilma" {
+		t.Fail()
+	}
+}
+
+func TestClearingEmptySet(t *testing.T) {
+	set := NewConcurrentWithInitializer("Fred", "Wilma", "Barney")
+	set.Clear() // should not panic
+	set.Clear() // should not panic
+
+	if set.Size() != 0 {
+		t.Fail()
+	}
+}
+
+func TestWaitForEntryTimeout(t *testing.T) {
+	set := NewConcurrentWithInitializer("Fred", "Wilma", "Barney")
+
+	if set.WaitForEmptyWithTimeout(time.Millisecond) {
+		t.Fail()
+	}
+
+	set = NewConcurrentWithInitializer[string]()
+
+	set.Remove("Fred")
+
+	if !set.WaitForEmptyWithTimeout(time.Millisecond) {
+		t.Fail()
+	}
+
+	set = NewConcurrent[string]()
+
+	if !set.WaitForEmptyWithTimeout(time.Millisecond) {
+		t.Fail()
+	}
+
+	set.Add("Fred")
+
+	if set.WaitForEmptyWithTimeout(time.Millisecond) {
+		t.Fail()
+	}
+
+	var result bool
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		result = set.WaitForEmptyWithTimeout(time.Second)
+		wg.Done()
+	}()
+
+	set.Remove("Fred")
+	wg.Wait()
+	if !result {
+		t.Fail()
+	}
+
+	var result2 bool
+	wg.Add(2)
+	set.Add("Fred")
+
+	go func() {
+		result2 = set.WaitForEmptyWithTimeout(time.Second)
+		wg.Done()
+	}()
+
+	go func() {
+		result = set.WaitForEmptyWithTimeout(time.Second)
+		wg.Done()
+	}()
+
+	set.Remove("Fred")
+	wg.Wait()
+	if !(result && result2) {
 		t.Fail()
 	}
 }
