@@ -196,3 +196,121 @@ func TestWaitForEntryTimeout(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestSet_Difference(t *testing.T) {
+	setA := New[int]()
+	setB := New[int]()
+
+	setA.Add(1)
+	setA.Add(2)
+	setB.Add(2)
+	setB.Add(3)
+
+	setC := setA.Difference(setB)
+	if setC.Size() != 1 {
+		t.Fail()
+	}
+	if !setC.Contains(1) {
+		t.Fail()
+	}
+	if setC.Contains(2) || setC.Contains(3) {
+		t.Fail()
+	}
+
+	// Difference with empty rhs returns a copy of lhs
+	setD := setA.Difference(New[int]())
+	if setD.Size() != 2 || !setD.Contains(1) || !setD.Contains(2) {
+		t.Fail()
+	}
+
+	// Difference with empty lhs is empty
+	setE := New[int]()
+	setE = setE.Difference(setB)
+	if !setE.IsEmpty() {
+		t.Fail()
+	}
+}
+
+func TestSet_IsSubset(t *testing.T) {
+	setA := NewWithInitializer(1, 2)
+	setB := NewWithInitializer(1, 3, 2)
+
+	if !setA.IsSubset(setB) {
+		t.Fail()
+	}
+	if setB.IsSubset(setA) {
+		t.Fail()
+	}
+	// empty set is subset of any set
+	empty := New[int]()
+	if !empty.IsSubset(setB) {
+		t.Fail()
+	}
+	// set is subset of itself
+	if !setA.IsSubset(setA) {
+		t.Fail()
+	}
+}
+
+func TestSet_Equal(t *testing.T) {
+	setA := NewWithInitializer(1, 2, 3)
+	setB := NewWithInitializer(3, 2, 1)
+	setC := NewWithInitializer(1, 2)
+	setD := New[int]()
+	setE := New[int]()
+
+	if !setA.Equal(setB) {
+		t.Fail()
+	}
+	if setA.Equal(setC) {
+		t.Fail()
+	}
+	if !setD.Equal(setE) {
+		t.Fail()
+	}
+}
+
+func TestSet_Clone(t *testing.T) {
+	orig := NewWithInitializer("a", "b")
+	clone := orig.Clone()
+
+	// equal initially
+	if !orig.Equal(clone) {
+		t.Fail()
+	}
+
+	// mutate original; clone should remain unchanged
+	orig.Add("c")
+	if clone.Contains("c") {
+		t.Fail()
+	}
+	if orig.Equal(clone) {
+		t.Fail()
+	}
+
+	// mutate clone; original should remain unchanged
+	clone.Remove("a")
+	if !orig.Contains("a") {
+		t.Fail()
+	}
+}
+
+func TestSet_IsEmpty(t *testing.T) {
+	set := New[string]()
+	if !set.IsEmpty() {
+		t.Fail()
+	}
+	set.Add("x")
+	if set.IsEmpty() {
+		t.Fail()
+	}
+	set.Remove("x")
+	if !set.IsEmpty() {
+		t.Fail()
+	}
+	set.Add("y")
+	set.Clear()
+	if !set.IsEmpty() {
+		t.Fail()
+	}
+}
