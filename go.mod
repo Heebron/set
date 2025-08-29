@@ -1,3 +1,3 @@
-module github.com/Heebron/set/v2
+module github.com/Heebron/set
 
 go 1.21
