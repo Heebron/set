@@ -316,9 +316,11 @@ func (s *Set[T]) Equal(rhs Set[T]) bool {
 	return true
 }
 
-// WaitForEmptyWithTimeout waits until the set becomes empty or the specified timeout elapses.
-// Returns true if the set becomes empty, false if the timeout occurs first.
-// The set may receive new elements before this method returns. Negative timeout duration is converted to a duration of 0.
+// WaitForEmptyWithTimeout waits for the set to become empty or until the timeout expires.
+// It tests the state after timeout or transition to empty and returns true if the set is empty,
+// otherwise false. It is possible for the set to become non-empty after the timeout expires.
+// This method only guarantees that either the set was empty, transitioned to empty, or a timeout
+// occurred. It does not guarantee the set is empty at exit.
 func (s *Set[T]) WaitForEmptyWithTimeout(timeout time.Duration) bool {
 
 	if timeout < 0 {
