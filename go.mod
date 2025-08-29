@@ -1,5 +1,3 @@
-module github.com/Heebron/set
+module github.com/Heebron/set/v2
 
 go 1.21
-
-require github.com/Heebron/set/v2 v2.3.0 // indirect

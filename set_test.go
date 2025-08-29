@@ -1,14 +1,14 @@
 package set
 
 import (
+	"sync"
 	"testing"
-
-	"github.com/Heebron/set/v2"
+	"time"
 )
 
 func TestSet_String(t *testing.T) {
 
-	stringSet := set.New[string]()
+	stringSet := New[string]()
 
 	if !stringSet.Add("hello") {
 		t.Fail()
@@ -29,7 +29,7 @@ func TestSet_String(t *testing.T) {
 
 func TestSet_Int(t *testing.T) {
 
-	stringSet := set.New[int]()
+	stringSet := New[int]()
 
 	if stringSet.Size() != 0 {
 		t.Fail()
@@ -53,8 +53,8 @@ func TestSet_Int(t *testing.T) {
 }
 
 func TestSet_Intersect(t *testing.T) {
-	setA := set.New[int]()
-	setB := set.New[int]()
+	setA := New[int]()
+	setB := New[int]()
 
 	setA.Add(1)
 	setA.Add(2)
@@ -81,8 +81,8 @@ func TestSet_Intersect(t *testing.T) {
 }
 
 func TestSet_Union(t *testing.T) {
-	setA := set.New[int]()
-	setB := set.New[int]()
+	setA := New[int]()
+	setB := New[int]()
 
 	setA.Add(1)
 	setA.Add(2)
@@ -109,17 +109,90 @@ func TestSet_Union(t *testing.T) {
 }
 
 func TestMembers(t *testing.T) {
-	stringSet := set.NewWithInitializer("Fred", "Wilma", "Barney")
-	m := stringSet.Members()
-	if len(m) != stringSet.Size() {
+	set := NewWithInitializer("Fred", "Wilma", "Barney")
+	m := set.Members()
+	if len(m) != set.Size() {
 		t.Fail()
 	}
-	stringSet.Remove("Barney")
-	stringSet.Remove("Fred")
+	set.Remove("Barney")
+	set.Remove("Fred")
 
-	m = stringSet.Members()
+	m = set.Members()
 
 	if len(m) != 1 || m[0] != "Wilma" {
+		t.Fail()
+	}
+}
+
+func TestClearingEmptySet(t *testing.T) {
+	set := NewConcurrentWithInitializer("Fred", "Wilma", "Barney")
+	set.Clear() // should not panic
+	set.Clear() // should not panic
+
+	if set.Size() != 0 {
+		t.Fail()
+	}
+}
+
+func TestWaitForEntryTimeout(t *testing.T) {
+	set := NewConcurrentWithInitializer("Fred", "Wilma", "Barney")
+
+	if set.WaitForEmptyWithTimeout(time.Millisecond) {
+		t.Fail()
+	}
+
+	set = NewConcurrentWithInitializer[string]()
+
+	set.Remove("Fred")
+
+	if !set.WaitForEmptyWithTimeout(time.Millisecond) {
+		t.Fail()
+	}
+
+	set = NewConcurrent[string]()
+
+	if !set.WaitForEmptyWithTimeout(time.Millisecond) {
+		t.Fail()
+	}
+
+	set.Add("Fred")
+
+	if set.WaitForEmptyWithTimeout(time.Millisecond) {
+		t.Fail()
+	}
+
+	var result bool
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		result = set.WaitForEmptyWithTimeout(time.Second)
+		wg.Done()
+	}()
+
+	set.Remove("Fred")
+	wg.Wait()
+	if !result {
+		t.Fail()
+	}
+
+	var result2 bool
+	wg.Add(2)
+	set.Add("Fred")
+
+	go func() {
+		result2 = set.WaitForEmptyWithTimeout(time.Second)
+		wg.Done()
+	}()
+
+	go func() {
+		result = set.WaitForEmptyWithTimeout(time.Second)
+		wg.Done()
+	}()
+
+	set.Remove("Fred")
+	wg.Wait()
+	if !(result && result2) {
 		t.Fail()
 	}
 }
