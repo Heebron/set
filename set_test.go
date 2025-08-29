@@ -109,15 +109,15 @@ func TestSet_Union(t *testing.T) {
 }
 
 func TestMembers(t *testing.T) {
-	set := set.NewWithInitializer("Fred", "Wilma", "Barney")
-	m := set.Members()
-	if len(m) != set.Size() {
+	stringSet := set.NewWithInitializer("Fred", "Wilma", "Barney")
+	m := stringSet.Members()
+	if len(m) != stringSet.Size() {
 		t.Fail()
 	}
-	set.Remove("Barney")
-	set.Remove("Fred")
+	stringSet.Remove("Barney")
+	stringSet.Remove("Fred")
 
-	m = set.Members()
+	m = stringSet.Members()
 
 	if len(m) != 1 || m[0] != "Wilma" {
 		t.Fail()
