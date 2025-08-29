@@ -11,9 +11,7 @@
 package set
 
 import (
-	"context"
 	"sync"
-	"time"
 )
 
 type void struct{} // empty element value for map
@@ -32,7 +30,6 @@ var voidValue void
 type Set[T comparable] struct {
 	members map[T]void
 	mutex   *sync.RWMutex // if nil, the set is non-concurrent and performs no locking
-	trigger chan struct{} // used to indicate transition to empty set
 }
 
 // NewConcurrent returns a set that is concurrent safe.
@@ -45,9 +42,6 @@ func NewConcurrentWithInitializer[T comparable](members ...T) Set[T] {
 	s := Set[T]{members: make(map[T]void), mutex: new(sync.RWMutex)}
 	for _, v := range members {
 		s.members[v] = voidValue
-	}
-	if len(s.members) > 0 {
-		s.trigger = make(chan struct{})
 	}
 	return s
 }
@@ -68,16 +62,11 @@ func NewWithInitializer[T comparable](members ...T) Set[T] {
 
 // Add inserts e into the set.
 // It returns true if the set was modified (e was not already present), or false otherwise.
-func (s *Set[T]) Add(e T) bool {
+func (s Set[T]) Add(e T) bool {
 	if s.mutex != nil {
 		s.mutex.Lock()
 		defer s.mutex.Unlock()
-
-		if len(s.members) == 0 {
-			s.trigger = make(chan struct{})
-		}
 	}
-
 	_, exists := s.members[e]
 	if exists {
 		return false
@@ -88,29 +77,21 @@ func (s *Set[T]) Add(e T) bool {
 
 // Remove deletes e from the set.
 // It returns true if the set was modified (e was present), or false otherwise.
-func (s *Set[T]) Remove(e T) bool {
-	var beforeSize int
-
+func (s Set[T]) Remove(e T) bool {
 	if s.mutex != nil {
 		s.mutex.Lock()
-		beforeSize = len(s.members)
 		defer s.mutex.Unlock()
 	}
 	_, exists := s.members[e]
 	if exists {
 		delete(s.members, e)
-
-		if s.mutex != nil && beforeSize == 1 && len(s.members) == 0 {
-			close(s.trigger)
-		}
-
 		return true
 	}
 	return false
 }
 
 // Contains reports whether e is a voidValue of the set.
-func (s *Set[T]) Contains(e T) bool {
+func (s Set[T]) Contains(e T) bool {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
@@ -121,7 +102,7 @@ func (s *Set[T]) Contains(e T) bool {
 
 // Intersect returns a new set containing the elements common to s and rhs.
 // The returned set inherits the concurrency mode of the receiver (s).
-func (s *Set[T]) Intersect(rhs Set[T]) Set[T] {
+func (s Set[T]) Intersect(rhs Set[T]) Set[T] {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
@@ -149,7 +130,7 @@ func (s *Set[T]) Intersect(rhs Set[T]) Set[T] {
 
 // Union returns a new set containing all elements present in either s or rhs.
 // The returned set inherits the concurrency mode of the receiver (s).
-func (s *Set[T]) Union(rhs Set[T]) Set[T] {
+func (s Set[T]) Union(rhs Set[T]) Set[T] {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
@@ -178,7 +159,7 @@ func (s *Set[T]) Union(rhs Set[T]) Set[T] {
 }
 
 // Size returns the number of elements currently in the set.
-func (s *Set[T]) Size() int {
+func (s Set[T]) Size() int {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
@@ -186,14 +167,9 @@ func (s *Set[T]) Size() int {
 	return len(s.members)
 }
 
-// IsEmpty returns true if the set contains no elements, otherwise false.
-func (s *Set[T]) IsEmpty() bool {
-	return s.Size() == 0
-}
-
 // Members returns a snapshot slice containing all members of the set.
 // The order of elements in the returned slice is unspecified.
-func (s *Set[T]) Members() []T {
+func (s Set[T]) Members() []T {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
@@ -208,24 +184,17 @@ func (s *Set[T]) Members() []T {
 }
 
 // Clear removes all elements from the set while maintaining its concurrent/non-concurrent state.
-func (s *Set[T]) Clear() {
-	var beforeSize int
-
+func (s Set[T]) Clear() {
 	if s.mutex != nil {
 		s.mutex.Lock()
-		beforeSize = len(s.members)
 		defer s.mutex.Unlock()
 	}
 	clear(s.members)
-
-	if s.mutex != nil && beforeSize > 0 {
-		close(s.trigger)
-	}
 }
 
 // Clone returns a new set containing all elements from the original set.
 // The returned set inherits the concurrency mode of the receiver.
-func (s *Set[T]) Clone() Set[T] {
+func (s Set[T]) Clone() Set[T] {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
@@ -246,7 +215,7 @@ func (s *Set[T]) Clone() Set[T] {
 
 // Difference returns a new set containing elements present in s but not in rhs.
 // The returned set inherits the concurrency mode of the receiver (s).
-func (s *Set[T]) Difference(rhs Set[T]) Set[T] {
+func (s Set[T]) Difference(rhs Set[T]) Set[T] {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
@@ -273,7 +242,7 @@ func (s *Set[T]) Difference(rhs Set[T]) Set[T] {
 }
 
 // IsSubset returns true if all elements in s are present in rhs.
-func (s *Set[T]) IsSubset(rhs Set[T]) bool {
+func (s Set[T]) IsSubset(rhs Set[T]) bool {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
@@ -293,7 +262,7 @@ func (s *Set[T]) IsSubset(rhs Set[T]) bool {
 }
 
 // Equal returns true if s and rhs contain exactly the same elements.
-func (s *Set[T]) Equal(rhs Set[T]) bool {
+func (s Set[T]) Equal(rhs Set[T]) bool {
 	if s.mutex != nil {
 		s.mutex.RLock()
 		defer s.mutex.RUnlock()
@@ -314,46 +283,4 @@ func (s *Set[T]) Equal(rhs Set[T]) bool {
 		}
 	}
 	return true
-}
-
-// WaitForEmptyWithTimeout waits for the set to become empty or until the timeout expires.
-// It tests the state after timeout or transition to empty and returns true if the set is empty,
-// otherwise false. It is possible for the set to become non-empty after the timeout expires.
-// This method only guarantees that either the set was empty, transitioned to empty, or a timeout
-// occurred. It does not guarantee the set is empty at exit.
-func (s *Set[T]) WaitForEmptyWithTimeout(timeout time.Duration) bool {
-
-	if timeout < 0 {
-		timeout = 0
-	}
-
-	if s.mutex == nil {
-		panic("cannot wait for empty on a non-concurrent set")
-	}
-
-	s.mutex.RLock()
-
-	if len(s.members) == 0 {
-		s.mutex.RUnlock()
-		return true
-	}
-
-	// Capture state before unlocking.
-	capturedChannel := s.trigger
-
-	// Release mutex.
-	s.mutex.RUnlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	select {
-	case <-capturedChannel: // Captured lock.
-	case <-ctx.Done(): // timeout
-	}
-
-	// Are we empty now?
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return len(s.members) == 0
 }
